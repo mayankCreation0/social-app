@@ -6,8 +6,10 @@ import { showToast } from '../utils/toast';
 import { Loader } from '../components/common/Loader';
 import { Plus } from 'lucide-react';
 import CreatePostModal from '@/components/CreatePostModal';
+import { useNavigate } from 'react-router-dom';
 
 const FeedPage = () => {
+    const navigate = useNavigate()
     const { user, posts, setPosts } = useApp();
     const [loading, setLoading] = useState(true);
     const [isCreatePostModalOpen, setIsCreatePostModalOpen] = useState(false);
@@ -56,6 +58,10 @@ const FeedPage = () => {
         setIsCreatePostModalOpen(true);
     };
 
+    const handleRedirect = () =>{
+        navigate('/profile')
+    }
+
     return (
         <div className="min-h-screen bg-white">
             {/* Header */}
@@ -68,6 +74,7 @@ const FeedPage = () => {
                             alt={user?.displayName || 'User'}
                             className="w-12 h-12 rounded-full object-cover"
                             referrerPolicy="no-referrer"
+                            onClick={handleRedirect}
                         />
                         <div>
                             <span className="text-[10px] font-[Kumbh Sans] text-gray-500 leading-[12.4px]">

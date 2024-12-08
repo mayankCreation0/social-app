@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 // src/context/AppContext.jsx
 import { createContext, useContext, useState, useEffect } from 'react';
 import { auth } from '../config/firebaseConfig';
@@ -45,6 +46,7 @@ export const AppProvider = ({ children }) => {
         lastVisible,
         setLastVisible,
         setLoading,
+        setUser
     };
 
     return (

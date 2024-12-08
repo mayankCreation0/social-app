@@ -3,8 +3,10 @@
 import { useState, useEffect } from 'react';
 import { ArrowLeft, ChevronLeft, ChevronRight, CameraIcon } from 'lucide-react';
 import { useDeviceImages } from '../hooks/useDeviceImages';
+import { useNavigate } from 'react-router-dom';
 
 const CreatePostModal = ({ isOpen, onClose }) => {
+    const navigate = useNavigate();
     const { images: mockImages } = useDeviceImages();
     const [deviceImages, setDeviceImages] = useState([]);
     const [selectedImages, setSelectedImages] = useState([]);
@@ -106,7 +108,17 @@ const CreatePostModal = ({ isOpen, onClose }) => {
 
     const handleNext = () => {
         if (selectedImages.length > 0) {
-            console.log('Selected images:', selectedImages);
+            const processedImages = selectedImages.map(img => ({
+                url: img.url,
+                file: img.file,
+                id: img.id
+            }));
+
+            navigate('/create-post', {
+                state: {
+                    selectedImages: processedImages
+                }
+            });
             handleClose();
         }
     };
@@ -158,14 +170,14 @@ const CreatePostModal = ({ isOpen, onClose }) => {
                                     >
                                         <ChevronRight className="w-6 h-6" />
                                     </button>
-                                    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex space-x-2">
+                                    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex space-x-1">
                                         {selectedImages.map((_, index) => (
                                             <button
                                                 key={index}
                                                 onClick={() => setCurrentPreviewIndex(index)}
-                                                className={`w-2 h-2 rounded-full transition-colors ${index === currentPreviewIndex
-                                                        ? 'bg-white'
-                                                        : 'bg-white/50'
+                                                className={`w-[6px] h-[6px] rounded-full transition-colors ${index === currentPreviewIndex
+                                                    ? 'bg-white'
+                                                    : 'bg-white/50'
                                                     }`}
                                             />
                                         ))}
@@ -179,6 +191,7 @@ const CreatePostModal = ({ isOpen, onClose }) => {
                         </div>
                     )}
                 </div>
+
 
                 {/* Bottom Section */}
                 <div className="bg-white">
