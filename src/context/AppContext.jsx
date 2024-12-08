@@ -17,6 +17,7 @@ export const AppProvider = ({ children }) => {
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
             if (currentUser) {
+                console.log("Unsubscribed", currentUser )
                 // Format user data and make sure to include all necessary fields
                 const userData = {
                     uid: currentUser.uid,

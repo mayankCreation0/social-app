@@ -5,10 +5,12 @@ import { api } from '../services/api';
 import { showToast } from '../utils/toast';
 import { Loader } from '../components/common/Loader';
 import { Plus } from 'lucide-react';
+import CreatePostModal from '@/components/CreatePostModal';
 
 const FeedPage = () => {
     const { user, posts, setPosts } = useApp();
     const [loading, setLoading] = useState(true);
+    const [isCreatePostModalOpen, setIsCreatePostModalOpen] = useState(false);
 
     useEffect(() => {
         console.log(user?.photoURL);
@@ -50,6 +52,10 @@ const FeedPage = () => {
         }
     };
 
+    const handleCreatePost = () => {
+        setIsCreatePostModalOpen(true);
+    };
+
     return (
         <div className="min-h-screen bg-white">
             {/* Header */}
@@ -60,19 +66,19 @@ const FeedPage = () => {
                         <img
                             src={user?.photoURL || 'https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y'}
                             alt={user?.displayName || 'User'}
-                            className="w-10 h-10 rounded-full object-cover"
+                            className="w-12 h-12 rounded-full object-cover"
                             referrerPolicy="no-referrer"
                         />
                         <div>
-                            <span className="text-[10px] text-gray-500 leading-[12.4px]">
+                            <span className="text-[10px] font-[Kumbh Sans] text-gray-500 leading-[12.4px]">
                                 Welcome Back,
                             </span>
-                            <h2 className="text-base font-semibold leading-[19.84px]">
+                            <h2 className="text-lg font-[Kumbh Sans] font-semibold leading-[19.84px]">
                                 {user?.displayName || 'User'}
                             </h2>
                         </div>
                     </div>
-                    <h1 className="text-lg font-semibold">Feeds</h1>
+                    <h1 className="text-2xl font-bold mt-7">Feeds</h1>
                 </div>
             </header>
 
@@ -149,11 +155,17 @@ const FeedPage = () => {
 
                 {/* Create Post Button */}
                 <button
+                    onClick={handleCreatePost}
                     className="fixed bottom-6 right-6 bg-black text-white rounded-full w-14 h-14 flex items-center justify-center shadow-lg hover:bg-gray-800 transition-colors"
                     aria-label="Create new post"
                 >
                     <Plus className="w-7 h-7" />
                 </button>
+
+                <CreatePostModal
+                    isOpen={isCreatePostModalOpen}
+                    onClose={() => setIsCreatePostModalOpen(false)}
+                />
             </main>
         </div>
     );
