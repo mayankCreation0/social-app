@@ -9,10 +9,14 @@ import {
     addDoc,
     updateDoc,
     doc,
-    serverTimestamp
+    serverTimestamp,
+    where,
+    getDoc,
+    setDoc
 } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { auth, firestore, storage } from '../config/firebaseConfig';
+import { auth, firestore } from '../config/firebaseConfig';
+const CLOUDINARY_UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
+const CLOUDINARY_CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
 
 export const api = {
     // Posts
@@ -49,22 +53,56 @@ export const api = {
             const currentUser = auth.currentUser;
             if (!currentUser) throw new Error('User must be logged in to create a post');
 
-            // Upload images if any
+            // Upload images to Cloudinary
             const imageURLs = await Promise.all(
-                imageFiles.map(async (file) => {
-                    const storageRef = ref(storage, `posts/${Date.now()}_${file.name}`);
-                    const snapshot = await uploadBytes(storageRef, file);
-                    return getDownloadURL(snapshot.ref);
+                imageFiles.map(async (imageData) => {
+                    // Create FormData
+                    const formData = new FormData();
+
+                    // If we have a file object directly
+                    if (imageData.file instanceof File) {
+                        formData.append('file', imageData.file);
+                    }
+                    // If we have a URL, send the URL directly
+                    else if (imageData.url) {
+                        formData.append('file', imageData.url);
+                    }
+
+                    formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+
+                    try {
+                        const response = await fetch(
+                            `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`,
+                            {
+                                method: 'POST',
+                                body: formData,
+                            }
+                        );
+
+                        if (!response.ok) {
+                            const errorData = await response.json();
+                            throw new Error(errorData.error?.message || 'Upload failed');
+                        }
+
+                        const data = await response.json();
+                        return data.secure_url;
+                    } catch (uploadError) {
+                        console.error('Image upload error:', uploadError);
+                        throw uploadError;
+                    }
                 })
             );
 
-            // Create post document with author information
+            // Filter out any undefined URLs
+            const validImageURLs = imageURLs.filter(url => url);
+
+            // Create post document
             const post = {
-                ...postData,
-                imageURLs,
+                content: postData.content || '',
+                imageURLs: validImageURLs,
                 authorId: currentUser.uid,
-                authorName: currentUser.displayName,
-                authorPhotoURL: currentUser.photoURL,
+                authorName: currentUser.displayName || 'Anonymous',
+                authorPhotoURL: currentUser.photoURL || null,
                 createdAt: serverTimestamp(),
                 likes: 0,
             };
@@ -107,4 +145,52 @@ export const api = {
             throw error;
         }
     },
+
+    async fetchUserPosts(userId) {
+        try {
+            const postsRef = collection(firestore, 'posts');
+            const q = query(
+                postsRef,
+                where('authorId', '==', userId),
+                orderBy('createdAt', 'desc')
+            );
+
+            const snapshot = await getDocs(q);
+            return snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+        } catch (error) {
+            console.error('Error fetching user posts:', error);
+            throw error;
+        }
+    },
+
+    // In api.js
+    async updateUserProfile(userId, profileData) {
+        try {
+            const userRef = doc(firestore, 'users', userId);
+
+            // Remove any undefined values
+            const cleanData = Object.fromEntries(
+                Object.entries(profileData).filter(([_, value]) => value !== undefined)
+            );
+
+            // First check if document exists
+            const docSnap = await getDoc(userRef);
+
+            if (!docSnap.exists()) {
+                // If document doesn't exist, create it
+                await setDoc(userRef, cleanData);
+            } else {
+                // If it exists, update it
+                await updateDoc(userRef, cleanData);
+            }
+
+            return true;
+        } catch (error) {
+            console.error('Error updating profile:', error);
+            throw error;
+        }
+    }
 };

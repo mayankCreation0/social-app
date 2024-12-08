@@ -21,9 +21,7 @@ const auth = getAuth(app);
 const firestore = getFirestore(app);
 const storage = getStorage(app);
 
-// // Configure auth persistence
-// auth.setPersistence('local');
-
-
+// Configure Storage CORS
+storage._customDomain = `${firebaseConfig.storageBucket}.appspot.com`;
 
 export { app, auth, firestore, storage };
