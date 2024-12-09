@@ -1,11 +1,11 @@
 import { signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
 import { auth } from '../config/firebaseConfig';
-import '../Styles/LoginPage.css';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 
 const LoginPage = () => {
     const navigate = useNavigate();
+
     const handleGoogleSignIn = async () => {
         const provider = new GoogleAuthProvider();
         provider.addScope('profile');
@@ -16,10 +16,8 @@ const LoginPage = () => {
             const result = await signInWithPopup(auth, provider);
             const user = result.user;
 
-            console.log('Signed in as:', user.displayName);
             toast.dismiss(loadingToast);
             toast.success(`Welcome back, ${user.displayName}!`);
-
             navigate('/feed');
         } catch (error) {
             toast.error(error.message || 'Failed to sign in');
@@ -40,28 +38,49 @@ const LoginPage = () => {
     ];
 
     return (
-        <div className="loginPage">
-            <div className="loginPage__imageContainer">
+        <div className="relative w-full h-screen  mx-auto overflow-hidden bg-white">
+            <div className="grid grid-cols-3 gap-1 w-full">
                 {images.map((src, index) => (
-                    <div key={index} className="loginPage__imageWrapper">
-                        <img src={src} alt={`Vibesnap background ${index + 1}`} className="loginPage__image" />
+                    <div
+                        key={index}
+                        className={`relative h-52 overflow-hidden ${(index + 1) % 3 === 2 ? '-translate-y-[30%]' : ''
+                            }`}
+                    >
+                        <img
+                            src={src}
+                            alt={`Vibesnap ${index + 1}`}
+                            className="w-full h-full object-cover transition-transform hover:scale-105 duration-300"
+                        />
                     </div>
                 ))}
             </div>
 
-            <div className="loginPage__bottomSheet">
-                <div className="loginPage__header">
+            <div className="absolute bottom-0 left-0 right-0 h-[360px] bg-white rounded-t-[63px] shadow-2xl z-10">
+                <div className="absolute top-9 left-[45%] -translate-x-1/2 flex items-center space-x-2">
                     <img
                         src="https://s3-alpha-sig.figma.com/img/e588/3ae0/261c0b95b3d799ea23271ef18084f911?Expires=1734307200&Key-Pair-Id=APKAQ4GOSFWCVNEHN3O4&Signature=q8FF409O~E-mxxOtNDdH1g05KowwPaZtZdeu5ohYIif7w~zqd0AuIx~2vOEXMLPAs8k~87fD5ghEQHckln1pHM2SVjOhK2cgHPtRV9WMTyMF8R5WJkYRrs7sAP71i5OhI4GKihhRYaGF1vtiijpTufrINuu49BFWwgVfjeX~M907JJjUPeeywyZslFjh323HLkUJ66GcK2UZhrdC3DyM332uQubQ0AWRGDgngjDO-QGNLS3jlxYt-Z88r1O2OSUbskJvHoxunoUA9dknQnxZCegBI3cBpmz6GJrnRmcHv4fEzAjjZXztrAgRqbL~jDiI61lVePEq8kvDzQ1MITYE-w__"
                         alt="Vibesnap"
-                        style={{backgroundColor:"transparent",height:"56px",width:"56px"}}
+                        className="w-14 h-14 object-contain"
                     />
-                    <h1 className="loginPage__title">Vibesnap</h1>
+                    <h1 className="font-karla text-2xl font-semibold leading-tight">
+                        Vibesnap
+                    </h1>
                 </div>
-                <p className="loginPage__subtitle">Moments That Matter, Shared Forever.</p>
-                <button onClick={handleGoogleSignIn} className="loginPage__googleButton">
-                    <svg className="loginPage__googleIcon" width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <g clip-path="url(#clip0_1_312)">
+
+                <p className="absolute top-28 left-1/2 -translate-x-1/2 w-full text-center font-kumbh text-base text-gray-600">
+                    Moments That Matter, Shared Forever.
+                </p>
+
+                <button
+                    onClick={handleGoogleSignIn}
+                    className="absolute bottom-32 left-1/2 -translate-x-1/2 w-[60%] max-w-[280px] min-w-[200px] h-[50px] 
+                             flex items-center justify-center gap-3.5 px-5 py-3.5
+                             bg-[#292929] text-white rounded-[26px]
+                             transition-transform hover:scale-[1.02] active:scale-[0.98]
+                             shadow-lg hover:shadow-xl"
+                >
+                    <svg className="w-[18px] h-[18px]" width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <g clipPath="url(#clip0_1_312)">
                             <path d="M17.5818 9.1684C17.5818 8.43095 17.5219 7.8928 17.3924 7.33473H8.97144V10.6632H13.9144C13.8147 11.4904 13.2766 12.7361 12.0807 13.5732L12.0639 13.6846L14.7265 15.7473L14.911 15.7657C16.6051 14.201 17.5818 11.899 17.5818 9.1684Z" fill="#4285F4" />
                             <path d="M8.96944 17.9384C11.3911 17.9384 13.424 17.1411 14.909 15.7659L12.0787 13.5734C11.3213 14.1016 10.3048 14.4703 8.96944 14.4703C6.59763 14.4703 4.58458 12.9057 3.86699 10.7432L3.7618 10.7521L0.993237 12.8947L0.957031 12.9954C2.43193 15.9253 5.4615 17.9384 8.96944 17.9384Z" fill="#34A853" />
                             <path d="M3.86663 10.7429C3.67729 10.1848 3.56771 9.58686 3.56771 8.96902C3.56771 8.35111 3.67729 7.75319 3.85667 7.19512L3.85166 7.07627L1.0484 4.89923L0.956679 4.94286C0.348802 6.15868 0 7.524 0 8.96902C0 10.414 0.348802 11.7793 0.956679 12.9951L3.86663 10.7429Z" fill="#FBBC05" />
@@ -73,7 +92,7 @@ const LoginPage = () => {
                             </clipPath>
                         </defs>
                     </svg>
-                    Continue with Google
+                    <span className="font-kumbh text-base">Continue with Google</span>
                 </button>
             </div>
         </div>

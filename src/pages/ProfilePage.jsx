@@ -1,5 +1,5 @@
 /* eslint-disable no-unused-vars */
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import { ArrowLeft, Plus, Pencil } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -14,6 +14,8 @@ const ProfilePage = () => {
     const { user, setUser } = useApp();
     const navigate = useNavigate();
     const [isEditing, setIsEditing] = useState(false);
+    const coverInputRef = useRef(null);
+    const profileInputRef = useRef(null);
     const [editedData, setEditedData] = useState({
         displayName: user?.displayName || '',
         bio: user?.bio || "Just someone who loves designing, sketching, and finding beauty in the little things❤️",
@@ -28,23 +30,101 @@ const ProfilePage = () => {
         setIsCreatePostModalOpen(true);
     };
 
-    // Fetch user's posts
     useEffect(() => {
         const fetchUserPosts = async () => {
-            try {
-                const posts = await api.fetchUserPosts(user.uid);
-                setUserPosts(posts);
-            } catch (error) {
-                console.error('Error fetching user posts:', error);
-            } finally {
-                setLoading(false);
+            if (user?.uid) {
+                try {
+                    const posts = await api.fetchUserPosts(user.uid);
+                    setUserPosts(posts);
+                } catch (error) {
+                    console.error('Error fetching user posts:', error);
+                    showToast.error('Failed to load posts');
+                } finally {
+                    setLoading(false);
+                }
             }
         };
 
-        if (user?.uid) {
-            fetchUserPosts();
-        }
+        fetchUserPosts();
     }, [user?.uid]);
+
+    // Modify the fetchProfileData useEffect
+    useEffect(() => {
+        const fetchProfileData = async () => {
+            if (user?.uid) {
+                try {
+                    const profileData = await api.fetchUserProfile(user.uid);
+                    if (profileData) {
+                        // Update editedData with profile data
+                        setEditedData({
+                            displayName: profileData.displayName || user.displayName || '',
+                            bio: profileData.bio || "Just someone who loves designing, sketching, and finding beauty in the little things❤️",
+                            photoURL: profileData.photoURL || user.photoURL || null,
+                            coverPhotoURL: profileData.coverPhotoURL || null
+                        });
+
+                        // Update user context
+                        setUser(prev => ({
+                            ...prev,
+                            ...profileData
+                        }));
+                    }
+                } catch (error) {
+                    console.error('Error fetching profile data:', error);
+                    showToast.error('Failed to load profile data');
+                }
+            }
+        };
+
+        fetchProfileData();
+    }, [user?.uid, setUser]);
+
+    const handleImageUpload = async (file, type) => {
+        try {
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('upload_preset', import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET);
+
+            const response = await fetch(
+                `https://api.cloudinary.com/v1_1/${import.meta.env.VITE_CLOUDINARY_CLOUD_NAME}/image/upload`,
+                {
+                    method: 'POST',
+                    body: formData,
+                }
+            );
+
+            if (!response.ok) throw new Error('Upload failed');
+
+            const data = await response.json();
+            const imageUrl = data.secure_url;
+
+            if (type === 'cover') {
+                setEditedData(prev => ({ ...prev, coverPhotoURL: imageUrl }));
+                await api.updateUserProfile(user.uid, { coverPhotoURL: imageUrl });
+            } else {
+                setEditedData(prev => ({ ...prev, photoURL: imageUrl }));
+                await updateProfile(auth.currentUser, { photoURL: imageUrl });
+                await api.updateUserProfile(user.uid, { photoURL: imageUrl });
+            }
+
+            setUser(prev => ({
+                ...prev,
+                [type === 'cover' ? 'coverPhotoURL' : 'photoURL']: imageUrl
+            }));
+
+            showToast.success('Image uploaded successfully!');
+        } catch (error) {
+            console.error('Upload error:', error);
+            showToast.error('Failed to upload image');
+        }
+    };
+
+    const handleImageChange = async (event, type) => {
+        const file = event.target.files?.[0];
+        if (file) {
+            await handleImageUpload(file, type);
+        }
+    };
 
     const handleSaveProfile = async () => {
         try {
@@ -57,28 +137,18 @@ const ProfilePage = () => {
             }
 
             const profileUpdates = {
-                displayName: editedData.displayName || user?.displayName,
+                displayName: editedData.displayName,
                 bio: editedData.bio,
-                updatedAt: serverTimestamp()
+                updatedAt: serverTimestamp(),
+                photoURL: editedData.photoURL || user?.photoURL,
+                coverPhotoURL: editedData.coverPhotoURL || user?.coverPhotoURL
             };
 
-            if (editedData.photoURL) {
-                profileUpdates.photoURL = editedData.photoURL;
-            }
-
-            if (editedData.coverPhotoURL) {
-                profileUpdates.coverPhotoURL = editedData.coverPhotoURL;
-            }
-
-            const cleanUpdates = Object.fromEntries(
-                Object.entries(profileUpdates).filter(([_, value]) => value !== undefined)
-            );
-
-            await api.updateUserProfile(user.uid, cleanUpdates);
+            await api.updateUserProfile(user.uid, profileUpdates);
 
             setUser(prev => ({
                 ...prev,
-                ...cleanUpdates
+                ...profileUpdates
             }));
 
             showToast.success('Profile updated successfully!');
@@ -92,26 +162,39 @@ const ProfilePage = () => {
     };
 
     return (
-        <div className="min-h-screen bg-white">
+        <div className="min-h-screen bg-white w-[100vw]">
             <div className="relative">
                 <div className="relative h-48 bg-gradient-to-r from-pink-300 via-purple-300 to-indigo-400">
-                    {user?.coverPhotoURL && (
+                    {editedData.coverPhotoURL && (
                         <img
-                            src={user.coverPhotoURL}
+                            src={editedData.coverPhotoURL}
                             alt="Cover"
                             className="w-full h-full object-cover"
                         />
                     )}
                     {isEditing && (
-                        <button className="absolute top-4 right-4 p-2 bg-black/50 rounded-full text-white">
-                            <Pencil className="w-5 h-5" />
-                        </button>
+                        <>
+                            <input
+                                ref={coverInputRef}
+                                type="file"
+                                accept="image/*"
+                                onChange={(e) => handleImageChange(e, 'cover')}
+                                className="hidden"
+                            />
+                            <button
+                                onClick={() => coverInputRef.current?.click()}
+                                className="absolute top-4 right-4 p-2 bg-black/50 rounded-full text-white"
+                            >
+                                <Pencil className="w-5 h-5" />
+                            </button>
+                        </>
                     )}
                 </div>
 
+                {/* Back button */}
                 <button
                     onClick={() => navigate(-1)}
-                    className="absolute top-4 left-4 p-2 text-white bg-transparent"
+                    className="absolute top-4 left-4 p-2 text-white bg-[#F5F5F5]"
                 >
                     <ArrowLeft className="w-6 h-6" />
                 </button>
@@ -120,15 +203,27 @@ const ProfilePage = () => {
                     <div className="relative">
                         <div className="w-28 h-28 rounded-full border-4 border-white overflow-hidden">
                             <img
-                                src={user?.photoURL || '/placeholder-avatar.png'}
-                                alt={user?.displayName}
+                                src={editedData.photoURL || '/placeholder-avatar.png'}
+                                alt={editedData.displayName}
                                 className="w-full h-full object-cover"
                             />
                         </div>
                         {isEditing && (
-                            <button className="absolute bottom-0 right-0 p-2 bg-black/50 rounded-full text-white">
-                                <Pencil className="w-4 h-4" />
-                            </button>
+                            <>
+                                <input
+                                    ref={profileInputRef}
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={(e) => handleImageChange(e, 'profile')}
+                                    className="hidden"
+                                />
+                                <button
+                                    onClick={() => profileInputRef.current?.click()}
+                                    className="absolute bottom-0 right-0 p-2 bg-black/50 rounded-full text-white"
+                                >
+                                    <Pencil className="w-4 h-4" />
+                                </button>
+                            </>
                         )}
                     </div>
 
@@ -142,25 +237,34 @@ const ProfilePage = () => {
             </div>
 
             <div className="mt-20 px-6">
-                <div className="flex flex-col gap-2">
+                <div className="flex flex-col gap-4 max-w-md mx-auto">
                     {isEditing ? (
-                        <>
-                            <input
-                                type="text"
-                                value={editedData.displayName}
-                                onChange={(e) => setEditedData(prev => ({ ...prev, displayName: e.target.value }))}
-                                className="text-xl font-bold bg-gray-100 rounded p-2"
-                            />
-                            <textarea
-                                value={editedData.bio}
-                                onChange={(e) => setEditedData(prev => ({ ...prev, bio: e.target.value }))}
-                                className="text-gray-600 text-sm bg-gray-100 rounded p-2 resize-none"
-                                rows={3}
-                            />
-                        </>
+                        <div className="space-y-4">
+                            <div className="space-y-2">
+                                <label className="text-sm text-gray-600 font-medium">Name</label>
+                                <input
+                                    type="text"
+                                    value={editedData.displayName}
+                                    onChange={(e) => setEditedData(prev => ({ ...prev, displayName: e.target.value }))}
+                                    className="w-full p-2 border-b border-gray-200 focus:border-gray-400 outline-none bg-transparent text-xl font-medium"
+                                    placeholder="Your name"
+                                />
+                            </div>
+
+                            <div className="space-y-2">
+                                <label className="text-sm text-gray-600 font-medium">Bio</label>
+                                <textarea
+                                    value={editedData.bio}
+                                    onChange={(e) => setEditedData(prev => ({ ...prev, bio: e.target.value }))}
+                                    className="w-full p-2 border-b border-gray-200 focus:border-gray-400 outline-none bg-transparent text-sm resize-none"
+                                    rows={3}
+                                    placeholder="Tell us about yourself"
+                                />
+                            </div>
+                        </div>
                     ) : (
                         <>
-                            <h1 className="text-xl font-bold">{user?.displayName}</h1>
+                            <h1 className="text-xl font-bold">{editedData.displayName}</h1>
                             <p className="text-gray-600 text-sm">
                                 {editedData.bio}
                             </p>

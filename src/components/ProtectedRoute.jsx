@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import PropTypes from 'prop-types';
 import { auth } from '../config/firebaseConfig';
 import { onAuthStateChanged } from 'firebase/auth';
+import { Loader } from './common/Loader';
 
 const ProtectedRoute = ({ children }) => {
     const [loading, setLoading] = useState(true);
@@ -21,7 +22,7 @@ const ProtectedRoute = ({ children }) => {
     if (loading) {
         return (
             <div className="fixed inset-0 flex items-center justify-center bg-white">
-                <div className="animate-spin rounded-full h-8 w-8 border-2 border-gray-200 border-t-black"></div>
+                <Loader/>
             </div>
         );
     }

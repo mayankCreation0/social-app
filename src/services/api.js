@@ -12,14 +12,14 @@ import {
     serverTimestamp,
     where,
     getDoc,
-    setDoc
+    setDoc,
+    deleteDoc
 } from 'firebase/firestore';
 import { auth, firestore } from '../config/firebaseConfig';
 const CLOUDINARY_UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
 const CLOUDINARY_CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
 
 export const api = {
-    // Posts
     async fetchPosts(lastDoc = null, pageSize = 20) {
         try {
             const postsRef = collection(firestore, 'posts');
@@ -115,7 +115,6 @@ export const api = {
         }
     },
 
-    // User Profile
     async updateProfile(userId, profileData) {
         try {
             const userRef = doc(firestore, 'users', userId);
@@ -130,18 +129,16 @@ export const api = {
         }
     },
 
-    // Comments
-    async addComment(postId, commentData) {
+    async fetchUserProfile(userId) {
         try {
-            const commentsRef = collection(firestore, `posts/${postId}/comments`);
-            const comment = {
-                ...commentData,
-                createdAt: serverTimestamp()
-            };
-            const docRef = await addDoc(commentsRef, comment);
-            return { id: docRef.id, ...comment };
+            const userRef = doc(firestore, 'users', userId);
+            const docSnap = await getDoc(userRef);
+            if (docSnap.exists()) {
+                return docSnap.data();
+            }
+            return null;
         } catch (error) {
-            console.error('Error adding comment:', error);
+            console.error('Error fetching user profile:', error);
             throw error;
         }
     },
@@ -166,25 +163,21 @@ export const api = {
         }
     },
 
-    // In api.js
     async updateUserProfile(userId, profileData) {
         try {
             const userRef = doc(firestore, 'users', userId);
-
-            // Remove any undefined values
-            const cleanData = Object.fromEntries(
-                Object.entries(profileData).filter(([_, value]) => value !== undefined)
-            );
-
-            // First check if document exists
             const docSnap = await getDoc(userRef);
 
             if (!docSnap.exists()) {
-                // If document doesn't exist, create it
-                await setDoc(userRef, cleanData);
+                await setDoc(userRef, {
+                    ...profileData,
+                    updatedAt: serverTimestamp()
+                });
             } else {
-                // If it exists, update it
-                await updateDoc(userRef, cleanData);
+                await updateDoc(userRef, {
+                    ...profileData,
+                    updatedAt: serverTimestamp()
+                });
             }
 
             return true;
@@ -192,5 +185,50 @@ export const api = {
             console.error('Error updating profile:', error);
             throw error;
         }
-    }
+    },
+
+    async toggleLike(postId, userId) {
+        try {
+            const postRef = doc(firestore, 'posts', postId);
+            const likesCollectionRef = collection(firestore, 'posts', postId, 'likes');
+            const userLikeRef = doc(likesCollectionRef, userId);
+
+            const likeDoc = await getDoc(userLikeRef);
+            const postDoc = await getDoc(postRef);
+            const currentLikes = postDoc.data()?.likes || 0;
+
+            if (likeDoc.exists()) {
+                await deleteDoc(userLikeRef);
+                await updateDoc(postRef, {
+                    likes: Math.max(0, currentLikes - 1) 
+                });
+                return false;
+            } else {
+                await setDoc(userLikeRef, {
+                    userId,
+                    createdAt: serverTimestamp()
+                });
+                await updateDoc(postRef, {
+                    likes: currentLikes + 1
+                });
+                return true;
+            }
+        } catch (error) {
+            console.error('Error toggling like:', error);
+            throw error;
+        }
+    },
+
+    async checkIfUserLikedPost(postId, userId) {
+        try {
+            if (!userId) return false; 
+
+            const likeRef = doc(firestore, 'posts', postId, 'likes', userId);
+            const likeDoc = await getDoc(likeRef);
+            return likeDoc.exists();
+        } catch (error) {
+            console.error('Error checking like status:', error);
+            return false; 
+        }
+    },
 };

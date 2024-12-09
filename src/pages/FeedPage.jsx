@@ -1,4 +1,3 @@
-// src/pages/FeedPage.jsx
 import { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { api } from '../services/api';
@@ -7,6 +6,7 @@ import { Loader } from '../components/common/Loader';
 import { Plus } from 'lucide-react';
 import CreatePostModal from '@/components/CreatePostModal';
 import { useNavigate } from 'react-router-dom';
+import PostActions from '@/components/common/ShareModal';
 
 const FeedPage = () => {
     const navigate = useNavigate()
@@ -15,15 +15,26 @@ const FeedPage = () => {
     const [isCreatePostModalOpen, setIsCreatePostModalOpen] = useState(false);
 
     useEffect(() => {
-        console.log(user?.photoURL);
         fetchPosts();
-    }, []);
+    }, [user?.photoURL]); 
 
     const fetchPosts = async () => {
         try {
             setLoading(true);
             const { posts: fetchedPosts } = await api.fetchPosts();
-            setPosts(fetchedPosts);
+
+            const updatedPosts = fetchedPosts.map(post => {
+                if (post.authorId === user?.uid) {
+                    return {
+                        ...post,
+                        authorPhotoURL: user.photoURL,
+                        authorName: user.displayName
+                    };
+                }
+                return post;
+            });
+
+            setPosts(updatedPosts);
         } catch (error) {
             console.error('Error fetching posts:', error);
             showToast.error('Failed to load posts');
@@ -31,6 +42,21 @@ const FeedPage = () => {
             setLoading(false);
         }
     };
+
+    const updatePostsWithUserInfo = (userId, updatedInfo) => {
+        setPosts(prevPosts =>
+            prevPosts.map(post => {
+                if (post.authorId === userId) {
+                    return {
+                        ...post,
+                        ...updatedInfo
+                    };
+                }
+                return post;
+            })
+        );
+    };
+    
 
     const formatTimeAgo = (timestamp) => {
         if (!timestamp?.toDate) return '';
@@ -58,113 +84,103 @@ const FeedPage = () => {
         setIsCreatePostModalOpen(true);
     };
 
-    const handleRedirect = () =>{
+    const handleRedirect = () => {
         navigate('/profile')
     }
+    const renderPost = (post) => (
+        <article key={post.id} className="bg-[#F7EBFF] rounded-xl p-4">
+            <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center space-x-3">
+                    <img
+                        src={post.authorPhotoURL || '/placeholder-avatar.png'}
+                        alt={post.authorName || 'Anonymous'}
+                        className="w-10 h-10 rounded-full object-cover"
+                    />
+                    <div>
+                        <div className="flex items-center gap-2">
+                            <h3 className="font-[Kumbh Sans] font-medium text-sm">
+                                {post.authorName || 'Anonymous'}
+                            </h3>
+                            {post.authorId === user?.uid && (
+                                <span className="text-xs text-gray-500">(You)</span>
+                            )}
+                        </div>
+                        <p className="text-xs text-gray-500">
+                            {formatTimeAgo(post.createdAt)}
+                        </p>
+                    </div>
+                </div>
+            </div>
 
+            <p className="text-sm text-gray-800 mt-7 mb-3 font-[Kumbh Sans]">
+                {post.content}
+            </p>
+
+            {post.imageURLs?.length > 0 && (
+                <div className={`grid ${post.imageURLs.length === 1 ? 'grid-cols-1' : 'grid-cols-2'} gap-2 rounded-xl overflow-hidden mb-3`}>
+                    {post.imageURLs.map((url, index) => (
+                        <div key={index} className="relative aspect-square">
+                            <img
+                                src={url}
+                                alt={`Post ${index + 1}`}
+                                className="w-full h-full object-cover rounded-xl"
+                            />
+                        </div>
+                    ))}
+                </div>
+            )}
+
+            <PostActions
+                post={post}
+                user={user}
+                onLikeToggle={(isLiked) => {
+                    console.log(`Post ${post.id} ${isLiked ? 'liked' : 'unliked'}`);
+                }}
+            />
+        </article>
+    );
     return (
         <div className="min-h-screen bg-white">
-            {/* Header */}
-            <header className="sticky top-0 bg-white px-4 pt-4 pb-3">
-                <div className="w-full max-w-md mx-auto">
+            {/* Fixed Header */}
+            <header className="fixed top-0 left-0 right-0 bg-white z-10">
+                <div className="w-full max-w-md mx-auto px-4 pt-4 pb-3">
                     {/* User Info Row */}
                     <div className="flex items-center space-x-3 mb-4">
                         <img
-                            src={user?.photoURL || 'https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y'}
+                            src={user?.photoURL || '/placeholder-avatar.png'}
                             alt={user?.displayName || 'User'}
-                            className="w-12 h-12 rounded-full object-cover"
-                            referrerPolicy="no-referrer"
+                            className="w-10 h-10 rounded-full object-cover cursor-pointer"
                             onClick={handleRedirect}
                         />
                         <div>
                             <span className="text-[10px] font-[Kumbh Sans] text-gray-500 leading-[12.4px]">
                                 Welcome Back,
                             </span>
-                            <h2 className="text-lg font-[Kumbh Sans] font-semibold leading-[19.84px]">
+                            <h2 className="text-base font-[Kumbh Sans] font-semibold leading-[19.84px]">
                                 {user?.displayName || 'User'}
                             </h2>
                         </div>
                     </div>
-                    <h1 className="text-2xl font-bold mt-7">Feeds</h1>
+                    <h1 className="text-2xl mt-5 font-bold">Feeds</h1>
                 </div>
             </header>
 
-            {/* Content */}
-            <main className="w-full max-w-md mx-auto px-4 pb-20">
+            <main className="w-full max-w-md mx-auto px-4 pt-32 pb-20">
                 {loading ? (
-                    <div className="flex justify-center py-8">
-                        <Loader />
-                    </div>
+                    <Loader />
                 ) : posts.length === 0 ? (
                     <div className="text-center py-8 text-gray-500">
                         No posts yet. Be the first to share something!
                     </div>
                 ) : (
-                    <div className="space-y-4 py-4">
-                        {posts.map(post => (
-                            <article key={post.id} className="bg-white rounded-2xl p-4 shadow-sm">
-                                {/* Author Info */}
-                                <div className="flex items-center space-x-3 mb-3">
-                                    <img
-                                        src={post.authorPhotoURL || 'https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y'}
-                                        alt={post.authorName || 'Anonymous'}
-                                        className="w-10 h-10 rounded-full object-cover"
-                                        referrerPolicy="no-referrer"
-                                    />
-                                    <div>
-                                        <h3 className="font-medium text-sm">
-                                            {post.authorName || 'Anonymous'}
-                                        </h3>
-                                        <p className="text-xs text-gray-500">
-                                            {formatTimeAgo(post.createdAt)}
-                                        </p>
-                                    </div>
-                                </div>
-
-                                {/* Post Content */}
-                                <p className="text-sm text-gray-800 mb-3">{post.content}</p>
-
-                                {/* Post Media */}
-                                {post.imageURLs?.length > 0 && (
-                                    <div className={`grid ${post.imageURLs.length === 1 ? 'grid-cols-1' : 'grid-cols-2'
-                                        } gap-2 mb-3 rounded-xl overflow-hidden`}>
-                                        {post.imageURLs.map((url, index) => (
-                                            <div key={index} className="aspect-square relative">
-                                                <img
-                                                    src={url}
-                                                    alt={`Post content ${index + 1}`}
-                                                    className="absolute inset-0 w-full h-full object-cover"
-                                                />
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-
-                                {/* Post Actions */}
-                                <div className="flex items-center justify-between mt-2">
-                                    <button className="flex items-center space-x-1 text-rose-500">
-                                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                                            <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
-                                        </svg>
-                                        <span className="text-sm">{post.likes || 0}</span>
-                                    </button>
-                                    <button className="flex items-center space-x-1 text-gray-600">
-                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
-                                        </svg>
-                                        <span className="text-sm">Share</span>
-                                    </button>
-                                </div>
-                            </article>
-                        ))}
+                    <div className="space-y-6">
+                        {posts.map(post => renderPost(post))}
                     </div>
                 )}
 
-                {/* Create Post Button */}
                 <button
                     onClick={handleCreatePost}
-                    className="fixed bottom-6 right-6 bg-black text-white rounded-full w-14 h-14 flex items-center justify-center shadow-lg hover:bg-gray-800 transition-colors"
-                    aria-label="Create new post"
+                    className="fixed bottom-6 right-6 bg-black text-white rounded-full w-14 h-14 flex items-center justify-center shadow-lg"
                 >
                     <Plus className="w-7 h-7" />
                 </button>
