@@ -22,7 +22,7 @@ A modern social media application built with React and Firebase, featuring real-
 ## Getting Started
 
 1. Clone the repository:
-git clone https://github.com/yourusername/vibesnap.git
+git clone https://github.com/mayankCreation0/social-app.git
 
 2. Install dependencies:
 npm install
