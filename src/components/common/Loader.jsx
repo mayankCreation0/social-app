@@ -1,33 +1,32 @@
-/* eslint-disable react/prop-types */
+import { DotLottieReact } from '@lottiefiles/dotlottie-react';
 
-export const Loader = ({ size = 'medium', fullScreen = false }) => {
-    const sizeClasses = {
-        small: 'w-4 h-4',
-        medium: 'w-8 h-8',
-        large: 'w-12 h-12'
-    };
-
+export const Loader = ({  fullScreen = true }) => {
     const loaderElement = (
-        <div className={`${sizeClasses[size]} animate-spin rounded-full border-2 border-gray-200 border-t-blue-600`} />
+        <div className={`flex items-center justify-center`}>
+            <DotLottieReact
+                src="https://lottie.host/82391125-bf42-492a-919a-3194b3f1477b/LBKW9weUIA.lottie"
+                loop
+                autoplay
+                style={{ width: '100%', height: '100%' }}
+            />
+        </div>
     );
 
     if (fullScreen) {
         return (
-            <div className="fixed inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center z-50">
+            <div className="fixed inset-0 bg-white/90 backdrop-blur-sm flex items-center justify-center z-50 min-h-screen">
                 {loaderElement}
             </div>
         );
     }
 
     return (
-        <div className="flex justify-center items-center p-4">
+        <div className="flex justify-center items-center min-h-[200px]">
             {loaderElement}
         </div>
     );
 };
 
-// Loading Button Component
-// eslint-disable-next-line react/prop-types
 export const LoadingButton = ({ loading, children, ...props }) => {
     return (
         <button
@@ -36,11 +35,15 @@ export const LoadingButton = ({ loading, children, ...props }) => {
             {...props}
         >
             {loading && (
-                <span className="absolute left-4">
-                    <Loader size="small" />
+                <span className="absolute left-4 w-6 h-6">
+                    <DotLottieReact
+                        src="https://lottie.host/82391125-bf42-492a-919a-3194b3f1477b/LBKW9weUIA.lottie"
+                        loop
+                        autoplay
+                    />
                 </span>
             )}
-            <span className={loading ? 'pl-6' : ''}>
+            <span className={loading ? 'pl-8' : ''}>
                 {children}
             </span>
         </button>
